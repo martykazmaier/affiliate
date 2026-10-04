@@ -1,0 +1,7 @@
+# Built binaries at repo root
+/affiliate
+/affiliate.exe
+/affiliate-linux-*
+
+# Keep published builds
+!/releases/
