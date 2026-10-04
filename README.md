@@ -73,4 +73,6 @@ or `./build.sh` — Linux 386, amd64, and arm64.
 
 ## License
 
-See TelnetDoor’s license for that binary. This door is provided as-is for SysOps running EleBBS.
+This software may be distributed under the [Q Public License version 1.0](LICENSE).
+
+TelnetDoor is a separate program with its own license.
