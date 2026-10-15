@@ -172,6 +172,10 @@ func (s *eleSocket) Close() error {
 	return nil
 }
 
+func (s *eleSocket) Hangup() {
+	_ = unix.Shutdown(s.fd, unix.SHUT_RDWR)
+}
+
 func (s *eleSocket) LocalAddr() net.Addr  { return s.local }
 func (s *eleSocket) RemoteAddr() net.Addr { return s.remote }
 

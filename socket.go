@@ -207,6 +207,11 @@ func (s *eleSocket) Close() error {
 	return nil
 }
 
+func (s *eleSocket) Hangup() {
+	const shutRDWR = 2
+	_ = windows.Shutdown(s.h, shutRDWR)
+}
+
 func (s *eleSocket) LocalAddr() net.Addr  { return s.local }
 func (s *eleSocket) RemoteAddr() net.Addr { return s.remote }
 

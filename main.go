@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -43,10 +44,19 @@ func main() {
 
 	sess := newSession(rw, sock, local)
 	defer sess.Close()
+	sess.setLimits(drop, cfg.idleMinutes)
 
-	if err := runDoor(sess, cfg, drop, sock); err != nil && err != io.EOF {
+	err := runDoor(sess, cfg, drop, sock)
+	if errors.Is(err, errIdle) || errors.Is(err, errTimeUp) {
+		sess.timeoutDisconnect(err)
+		return
+	}
+	if err != nil && err != io.EOF {
 		sess.print(crlf + colRed + "  " + err.Error() + colReset + crlf)
-		_ = sess.pause("Hit any key")
+		if pErr := sess.pause("Hit any key"); errors.Is(pErr, errIdle) || errors.Is(pErr, errTimeUp) {
+			sess.timeoutDisconnect(pErr)
+			return
+		}
 	}
 	sess.goodbye()
 }

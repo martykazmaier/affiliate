@@ -20,17 +20,25 @@ const (
 	keyEnd   = 0x1008
 )
 
+var (
+	errIdle   = errors.New("idle timeout")
+	errTimeUp = errors.New("time expired")
+)
+
 type session struct {
-	rw      io.ReadWriter
-	sock    *eleSocket
-	iac     int
-	iacCmd  byte
-	app     []byte
-	restore func()
+	rw        io.ReadWriter
+	sock      *eleSocket
+	iac       int
+	iacCmd    byte
+	app       []byte
+	restore   func()
+	lastInput time.Time
+	idle      time.Duration
+	until     time.Time
 }
 
 func newSession(rw io.ReadWriter, sock *eleSocket, local bool) *session {
-	s := &session{rw: rw, sock: sock}
+	s := &session{rw: rw, sock: sock, lastInput: time.Now()}
 	if local {
 		s.restore = enableConsoleVT()
 	} else {
@@ -38,6 +46,82 @@ func newSession(rw io.ReadWriter, sock *eleSocket, local bool) *session {
 		s.takeEcho()
 	}
 	return s
+}
+
+func (s *session) setLimits(drop *dropfile, idleMinutes int) {
+	s.lastInput = time.Now()
+	if idleMinutes < 0 {
+		idleMinutes = 5
+	}
+	if idleMinutes > 0 {
+		s.idle = time.Duration(idleMinutes) * time.Minute
+	}
+	if drop != nil && drop.timeLeft > 0 {
+		s.until = time.Now().Add(time.Duration(drop.timeLeft) * time.Minute)
+	}
+}
+
+func (s *session) bumpActivity() {
+	s.lastInput = time.Now()
+}
+
+func (s *session) checkLimits() error {
+	now := time.Now()
+	if !s.until.IsZero() && !now.Before(s.until) {
+		return errTimeUp
+	}
+	if s.idle > 0 && now.Sub(s.lastInput) >= s.idle {
+		return errIdle
+	}
+	return nil
+}
+
+func (s *session) waitDuration() time.Duration {
+	now := time.Now()
+	var d time.Duration
+	limited := false
+	if s.idle > 0 {
+		left := s.idle - now.Sub(s.lastInput)
+		if left < 0 {
+			left = 0
+		}
+		d = left
+		limited = true
+	}
+	if !s.until.IsZero() {
+		left := s.until.Sub(now)
+		if left < 0 {
+			left = 0
+		}
+		if !limited || left < d {
+			d = left
+		}
+		limited = true
+	}
+	if !limited {
+		return 0
+	}
+	if d < time.Millisecond {
+		return time.Millisecond
+	}
+	return d
+}
+
+func (s *session) hangup() {
+	if s.sock != nil {
+		s.sock.Hangup()
+	}
+}
+
+func (s *session) timeoutDisconnect(cause error) {
+	msg := "Idle timeout - disconnecting."
+	if errors.Is(cause, errTimeUp) {
+		msg = "Time expired - disconnecting."
+	}
+	s.print("\x1b[?7h\x1b[0;37;44m\x1b[2J\x1b[H\x1b[?25h")
+	s.print("\x1b[1;31;44m  " + msg + "\x1b[0m\r\n")
+	time.Sleep(1500 * time.Millisecond)
+	s.hangup()
 }
 
 func (s *session) Close() {
@@ -182,10 +266,20 @@ func (s *session) feedTelnet(b byte) {
 }
 
 func (s *session) readKey() (int, error) {
-	b, err := s.readByte(0)
-	if err != nil {
+	if err := s.checkLimits(); err != nil {
 		return 0, err
 	}
+	b, err := s.readByte(s.waitDuration())
+	if err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			if err := s.checkLimits(); err != nil {
+				return 0, err
+			}
+			return 0, errIdle
+		}
+		return 0, err
+	}
+	s.bumpActivity()
 	switch b {
 	case 13, 10:
 		return keyEnter, nil

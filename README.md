@@ -40,6 +40,7 @@ Glued EleBBS-style switches work: `-DC:\ELEBBS\NODE1\DOOR32.SYS`
 | `-T` / `-telnet` | Path to `telnetdoor` |
 | `-D` / `-dropfile` | Path to `DOOR32.SYS`, or the node directory |
 | `-C` / `-csv` | Affiliate CSV (default: `affiliates.csv` next to the binary) |
+| `-I` / `-idle` | Idle minutes with no keys (default 5; `0` disables). On timeout the socket is hung up. Remaining minutes in `DOOR32.SYS` also drop the caller. |
 | `-ws` | Wrap the socket as gorilla/websocket frames |
 
 ## In the door

@@ -49,9 +49,12 @@ func launchTelnetDoor(s *session, telnetPath, address, dropPath string, sock *el
 	err := cmd.Run()
 	s.print("\x1b[?25l")
 	s.resetInput()
+	s.bumpActivity()
 	if err != nil {
 		s.print(crlf + colRed + "  TelnetDoor ended: " + err.Error() + colReset + crlf)
-		_ = s.pause("Hit any key")
+		if pErr := s.pause("Hit any key"); pErr != nil {
+			return pErr
+		}
 	}
-	return nil
+	return s.checkLimits()
 }
