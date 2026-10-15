@@ -48,13 +48,11 @@ func newSession(rw io.ReadWriter, sock *eleSocket, local bool) *session {
 	return s
 }
 
-func (s *session) setLimits(drop *dropfile, idleMinutes int) {
+func (s *session) setLimits(drop *dropfile) {
 	s.lastInput = time.Now()
-	if idleMinutes < 0 {
-		idleMinutes = 5
-	}
-	if idleMinutes > 0 {
-		s.idle = time.Duration(idleMinutes) * time.Minute
+	local := s.sock == nil || drop == nil || drop.commType == commLocal
+	if !local {
+		s.idle = idleFromRA()
 	}
 	if drop != nil && drop.timeLeft > 0 {
 		s.until = time.Now().Add(time.Duration(drop.timeLeft) * time.Minute)
@@ -114,9 +112,9 @@ func (s *session) hangup() {
 }
 
 func (s *session) timeoutDisconnect(cause error) {
-	msg := "Idle timeout - disconnecting."
+	msg := "User Inactivity Timeout, Disconnecting"
 	if errors.Is(cause, errTimeUp) {
-		msg = "Time expired - disconnecting."
+		msg = "Time is up."
 	}
 	s.print("\x1b[?7h\x1b[0;37;44m\x1b[2J\x1b[H\x1b[?25h")
 	s.print("\x1b[1;31;44m  " + msg + "\x1b[0m\r\n")

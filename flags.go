@@ -4,17 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
 type config struct {
-	telnetDoor  string
-	dropfile    string
-	csvPath     string
-	webSocket   bool
-	exeDir      string
-	idleMinutes int
+	telnetDoor string
+	dropfile   string
+	csvPath    string
+	webSocket  bool
+	exeDir     string
 }
 
 func parseArgs(args []string) config {
@@ -25,7 +23,6 @@ func parseArgs(args []string) config {
 		cfg.exeDir, _ = os.Getwd()
 	}
 	cfg.csvPath = filepath.Join(cfg.exeDir, "affiliates.csv")
-	cfg.idleMinutes = -1
 
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -51,11 +48,6 @@ func parseArgs(args []string) config {
 			cfg.webSocket = true
 			if val == "0" || strings.EqualFold(val, "false") {
 				cfg.webSocket = false
-			}
-		case "i", "idle":
-			val, i = takeVal(val, args, i)
-			if n, err := strconv.Atoi(val); err == nil {
-				cfg.idleMinutes = n
 			}
 		case "h", "help", "?":
 			printUsage()
@@ -85,25 +77,8 @@ func splitOpt(body string) (key, val string) {
 		if looksLikePath(rest) {
 			return body[:1], rest
 		}
-	case "i":
-		rest := body[1:]
-		if isAllDigits(rest) {
-			return body[:1], rest
-		}
 	}
 	return body, ""
-}
-
-func isAllDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 func looksLikePath(s string) bool {
@@ -137,7 +112,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, `AFFILIATE — EleBBS affiliate telnet menu
 
 Usage:
-  affiliate -T<telnetdoor> -D<node/door32.sys> [-C<affiliates.csv>] [-I<minutes>] [-ws]
+  affiliate -T<telnetdoor> -D<node/door32.sys> [-C<affiliates.csv>] [-ws]
 
 Windows EleBBS (32-bit build):
   C:\AFFILIATE\AFFILIATE.EXE -TC:\DOORS\TELNETDOOR.EXE -D*N\door32.sys
@@ -149,8 +124,9 @@ Switches may be glued (EleBBS style) or spaced:
   -T  -telnet     path to telnetdoor
   -D  -dropfile   path to DOOR32.SYS (or the node directory)
   -C  -csv        affiliate list CSV (default: affiliates.csv next to this binary)
-  -I  -idle       idle minutes with no keys (default 5; 0 disables idle)
   -ws             wrap the EleBBS socket as gorilla/websocket frames
+
+Idle timeout is UserTimeOut in %RA%\CONFIG.RA. On timeout the socket is hung up.
 
 Keys in the door:
   Up/Down  move lightbar

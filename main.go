@@ -44,7 +44,7 @@ func main() {
 
 	sess := newSession(rw, sock, local)
 	defer sess.Close()
-	sess.setLimits(drop, cfg.idleMinutes)
+	sess.setLimits(drop)
 
 	err := runDoor(sess, cfg, drop, sock)
 	if errors.Is(err, errIdle) || errors.Is(err, errTimeUp) {
