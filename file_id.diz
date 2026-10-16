@@ -1,6 +1,10 @@
-+------------------------------------------+
-|        Affiliate BBSes from Shurato      |
-|Will display affiliate BBSes for your     |
-|users at log-off.  Allows users to become |
-|affiliates after agreeing to terms.       |
-+------------------------------------------+
+Affiliate BBS listing door for EleBBS
+Browse and connect to listed BBSes
+Users can submit new BBS listings
+Applicants accept your listing terms
+Runs at caller logoff with DOOR32 support
+Includes Windows and Linux builds
+Configure telnet and node dropfile paths
+Works with classic EleBBS door setups
+See README for installation details
+See README for command-line options
