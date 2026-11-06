@@ -102,6 +102,10 @@ func boxTop() string    { return frameLine(boxTL, boxH, boxTD, boxTR) }
 func boxRule() string   { return frameLine(boxML, boxSH, boxX, boxMR) }
 func boxBottom() string { return frameLine(boxBL, boxH, boxBU, boxBR) }
 
+func plainTop() string    { return boxTL + strings.Repeat(boxH, panelCols) + boxTR }
+func plainRule() string   { return boxML + strings.Repeat(boxSH, panelCols) + boxMR }
+func plainBottom() string { return boxBL + strings.Repeat(boxH, panelCols) + boxBR }
+
 func boxed(inner string) string {
 	b := []byte(pad(inner, panelCols))
 	if len(b) == panelCols {
@@ -110,6 +114,21 @@ func boxed(inner string) string {
 		b[fieldName+1+fieldAddr+1+fieldSysop] = boxSV[0]
 	}
 	return boxV + string(b) + boxV
+}
+
+func plainBoxed(inner string) string {
+	return boxV + pad(inner, panelCols) + boxV
+}
+
+func (s *session) fillPage(title string) {
+	s.cls()
+	s.panelAt(1, colTitle, plainTop())
+	s.panelAt(2, colTitle, plainBoxed(center(title, panelCols)))
+	s.panelAt(3, colHead, plainRule())
+	for row := 4; row <= 22; row++ {
+		s.panelAt(row, colPanel, plainBoxed(""))
+	}
+	s.panelAt(23, colTitle, plainBottom())
 }
 
 func (s *session) at(row, col int) {
@@ -177,18 +196,13 @@ func (s *session) pause(msg string) error {
 }
 
 func (s *session) addAffiliate(csvPath string) error {
-	s.cls()
-	s.panelAt(1, colTitle, boxTop())
-	s.panelAt(2, colTitle, boxed(center("AFFILIATE AGREEMENT", panelCols)))
-	s.panelAt(3, colTitle, boxBottom())
-	s.panelAt(4, colPanel, boxed(""))
-	s.panelAt(5, colPanel, boxed(" To list your BBS in this directory you must:"))
-	s.panelAt(6, colPanel, boxed(""))
-	s.panelAt(7, colTitle, boxed("  1) Download and run this door on your system"))
-	s.panelAt(8, colTitle, boxed("  2) Add THIS BBS to your affiliate list"))
-	s.panelAt(9, colPanel, boxed(""))
-	s.panelAt(10, colHead, boxed(" Do you agree? (Y/N) "))
-	s.at(10, gutter+23)
+	s.fillPage("AFFILIATE AGREEMENT")
+	s.panelAt(6, colPanel, plainBoxed(" To list your BBS in this directory you must:"))
+	s.panelAt(8, colTitle, plainBoxed("  1) Download and run this door on your system"))
+	s.panelAt(9, colTitle, plainBoxed("  2) Add THIS BBS to your affiliate list"))
+	s.panelAt(12, colHead, plainBoxed(" Do you agree? (Y/N) "))
+	s.keysAt(24, "Y Agree    N / ESC Cancel")
+	s.at(12, gutter+23)
 	s.print(colHead + "\x1b[?25h")
 
 	for {
@@ -208,17 +222,13 @@ func (s *session) addAffiliate(csvPath string) error {
 	}
 	s.print("\x1b[?25l")
 
-	s.cls()
-	s.panelAt(1, colTitle, boxTop())
-	s.panelAt(2, colTitle, boxed(center("ADD AFFILIATE", panelCols)))
-	s.panelAt(3, colTitle, boxBottom())
-	s.panelAt(5, colPanel, boxed(""))
-	s.at(6, 1)
-	s.print(colBg)
+	s.fillPage("ADD AFFILIATE")
+	s.keysAt(24, "ENTER Save field    ESC Cancel")
 
+	const inAttr = "\x1b[1;37;46m"
 	ask := func(row int, label string, max int) (string, bool, error) {
-		s.at(row, 1)
-		s.print(colBg + strings.Repeat(" ", gutter) + colCyan + label + " " + colBWhi)
+		s.at(row, gutter+2)
+		s.print(colHead + label + " " + inAttr)
 		return s.readLine(max)
 	}
 
@@ -244,15 +254,15 @@ func (s *session) addAffiliate(csvPath string) error {
 	sysop = clip(sysop, fieldSysop)
 	typ = clip(typ, fieldType)
 	if name == "" || addr == "" {
-		s.panelAt(20, colRed, boxed(" BBS name and telnet address are required."))
+		s.panelAt(20, colRed, plainBoxed(" BBS name and telnet address are required."))
 		return s.pause("Hit any key")
 	}
 
 	if err := appendAffiliate(csvPath, affiliate{Name: name, Address: addr, Sysop: sysop, Type: typ}); err != nil {
-		s.panelAt(20, colRed, boxed(" Could not save: "+clip(err.Error(), 50)))
+		s.panelAt(20, colRed, plainBoxed(" Could not save: "+clip(err.Error(), 70)))
 		return s.pause("Hit any key")
 	}
-	s.panelAt(20, colGrn, boxed(" Added "+name+" to the affiliate list."))
+	s.panelAt(20, colGrn, plainBoxed(" Added "+name+" to the affiliate list."))
 	return s.pause("Hit any key")
 }
 
