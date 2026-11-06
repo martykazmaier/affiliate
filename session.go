@@ -48,11 +48,13 @@ func newSession(rw io.ReadWriter, sock *eleSocket, local bool) *session {
 	return s
 }
 
+const idleLimit = 5 * time.Minute
+
 func (s *session) setLimits(drop *dropfile) {
 	s.lastInput = time.Now()
 	local := s.sock == nil || drop == nil || drop.commType == commLocal
 	if !local {
-		s.idle = idleFromRA()
+		s.idle = idleLimit
 	}
 	if drop != nil && drop.timeLeft > 0 {
 		s.until = time.Now().Add(time.Duration(drop.timeLeft) * time.Minute)
@@ -329,7 +331,6 @@ func (s *session) readLine(max int) (string, bool, error) {
 		case keyEsc:
 			return "", false, nil
 		case keyEnter:
-			s.print("\r\n")
 			return string(buf), true, nil
 		case 8:
 			if len(buf) == 0 {

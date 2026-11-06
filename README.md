@@ -42,7 +42,7 @@ Glued EleBBS-style switches work: `-DC:\ELEBBS\NODE1\DOOR32.SYS`
 | `-C` / `-csv` | Affiliate CSV (default: `affiliates.csv` next to the binary) |
 | `-ws` | Wrap the socket as gorilla/websocket frames |
 
-Idle timeout is `UserTimeOut` in `%RA%\CONFIG.RA` (seconds). On timeout the socket is hung up. Remaining minutes in `DOOR32.SYS` also drop the caller.
+Idle timeout is 5 minutes with no keys. On timeout the socket is hung up. Remaining minutes in `DOOR32.SYS` also drop the caller.
 
 ## In the door
 

@@ -126,7 +126,7 @@ Switches may be glued (EleBBS style) or spaced:
   -C  -csv        affiliate list CSV (default: affiliates.csv next to this binary)
   -ws             wrap the EleBBS socket as gorilla/websocket frames
 
-Idle timeout is UserTimeOut in %RA%\CONFIG.RA. On timeout the socket is hung up.
+Idle timeout is 5 minutes with no keys. On timeout the socket is hung up.
 
 Keys in the door:
   Up/Down  move lightbar

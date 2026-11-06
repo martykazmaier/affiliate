@@ -195,6 +195,26 @@ func (s *session) pause(msg string) error {
 	return err
 }
 
+func (s *session) askYN(row, col int) (bool, error) {
+	s.at(row, col)
+	s.print(colHead + "\x1b[?25h")
+	defer s.print("\x1b[?25l")
+	for {
+		k, err := s.readKey()
+		if err != nil {
+			return false, err
+		}
+		if k == keyEsc || k == 'n' || k == 'N' {
+			s.print("N")
+			return false, nil
+		}
+		if k == 'y' || k == 'Y' {
+			s.print("Y")
+			return true, nil
+		}
+	}
+}
+
 func (s *session) addAffiliate(csvPath string) error {
 	s.fillPage("AFFILIATE AGREEMENT")
 	s.panelAt(6, colPanel, plainBoxed(" To list your BBS in this directory you must:"))
@@ -202,64 +222,74 @@ func (s *session) addAffiliate(csvPath string) error {
 	s.panelAt(9, colTitle, plainBoxed("  2) Add THIS BBS to your affiliate list"))
 	s.panelAt(12, colHead, plainBoxed(" Do you agree? (Y/N) "))
 	s.keysAt(24, "Y Agree    N / ESC Cancel")
-	s.at(12, gutter+23)
-	s.print(colHead + "\x1b[?25h")
-
-	for {
-		k, err := s.readKey()
-		if err != nil {
-			return err
-		}
-		if k == keyEsc || k == 'n' || k == 'N' {
-			s.print("N")
-			s.print("\x1b[?25l")
-			return nil
-		}
-		if k == 'y' || k == 'Y' {
-			s.print("Y")
-			break
-		}
+	ok, err := s.askYN(12, gutter+23)
+	if err != nil || !ok {
+		return err
 	}
-	s.print("\x1b[?25l")
 
 	s.fillPage("ADD AFFILIATE")
-	s.keysAt(24, "ENTER Save field    ESC Cancel")
+	s.keysAt(24, "ENTER Next field    ESC Back to list")
 
 	const inAttr = "\x1b[1;37;46m"
-	ask := func(row int, label string, max int) (string, bool, error) {
-		s.at(row, gutter+2)
-		s.print(colHead + label + " " + inAttr)
-		return s.readLine(max)
+	clearErr := func() {
+		s.panelAt(20, colPanel, plainBoxed(""))
+	}
+	showErr := func(msg string) {
+		s.panelAt(20, colRed, plainBoxed(" "+msg))
+	}
+	ask := func(row int, label string, max int, check func(string) (string, string)) (string, bool, error) {
+		for {
+			s.panelAt(row, colPanel, plainBoxed(""))
+			s.at(row, gutter+2)
+			s.print(colHead + label + " " + inAttr)
+			val, ok, err := s.readLine(max)
+			if err != nil || !ok {
+				return "", ok, err
+			}
+			cleaned, msg := check(val)
+			if msg == "" {
+				clearErr()
+				return cleaned, true, nil
+			}
+			showErr(msg)
+		}
 	}
 
-	name, ok, err := ask(6, "BBS Name........:", fieldName)
+	name, ok, err := ask(6, "BBS Name........:", fieldName, checkName)
 	if err != nil || !ok {
 		return err
 	}
-	addr, ok, err := ask(8, "Telnet address..:", addrInput)
+	addr, ok, err := ask(8, "Telnet address..:", addrInput, func(v string) (string, string) {
+		a, msg := checkAddr(v)
+		if msg != "" {
+			return a, msg
+		}
+		if addrListed(csvPath, a) {
+			return "", "That telnet address is already listed."
+		}
+		return a, ""
+	})
 	if err != nil || !ok {
 		return err
 	}
-	sysop, ok, err := ask(10, "Sysop name......:", fieldSysop)
+	sysop, ok, err := ask(10, "Sysop name......:", fieldSysop, checkSysop)
 	if err != nil || !ok {
 		return err
 	}
-	typ, ok, err := ask(12, "BBS type........:", fieldType)
+	typ, ok, err := ask(12, "BBS type........:", fieldType, checkType)
 	if err != nil || !ok {
 		return err
 	}
 
-	name = clip(name, fieldName)
-	addr = strings.TrimSpace(addr)
-	sysop = clip(sysop, fieldSysop)
-	typ = clip(typ, fieldType)
-	if name == "" || addr == "" {
-		s.panelAt(20, colRed, plainBoxed(" BBS name and telnet address are required."))
-		return s.pause("Hit any key")
+	s.panelAt(16, colHead, plainBoxed(" Is this correct? (Y/N) "))
+	s.keysAt(24, "Y Save    N / ESC Back to list")
+	ok, err = s.askYN(16, gutter+26)
+	if err != nil || !ok {
+		return err
 	}
 
 	if err := appendAffiliate(csvPath, affiliate{Name: name, Address: addr, Sysop: sysop, Type: typ}); err != nil {
-		s.panelAt(20, colRed, plainBoxed(" Could not save: "+clip(err.Error(), 70)))
+		showErr("Could not save: " + clip(err.Error(), 55))
 		return s.pause("Hit any key")
 	}
 	s.panelAt(20, colGrn, plainBoxed(" Added "+name+" to the affiliate list."))
